@@ -7,10 +7,11 @@ unsigned long refresh; // To store time for refresh of reading
 
 int rpm; // RPM value
 
+
 boolean currentstate; // Current state of IR input scan
 boolean prevstate; // State of IR sensor in previous scan
-int ln1 = 8;
-int ln2 = 9;
+int ln1 = 9;
+int ln2 = 8;
 int enA = 10;
 
 float v_out = 0.0;
@@ -22,7 +23,9 @@ int value = 0;
 const int voltage = A0;
 const int back_emf = A1;
 
-int i = 50;
+const int min_val = 50;
+const int diff = 5;
+int i = min_val;
 
 float measure_voltage(int sensor_pin)
 {
@@ -38,13 +41,15 @@ float measure_voltage(int sensor_pin)
 float measure_rpm(int dataIN)
 {
   // RPM Measurement
+  int rpm_value;
+  
   currentstate = digitalRead(dataIN); // Read IR sensor state
   if( prevstate != currentstate) // If there is change in input
    {
      if( currentstate == HIGH ) // If input only changes from LOW to HIGH
        {
          duration = ( micros() - prevmillis ); // Time difference between revolution in microsecond
-         rpm = (60000000/duration); // rpm = (1/ time millis)*1000*1000*60;
+         rpm_value = (60000000/duration); // rpm = (1/ time millis)*1000*1000*60;
          prevmillis = micros(); // store time for nect revolution calculation
        }
    }
@@ -53,7 +58,7 @@ float measure_rpm(int dataIN)
   // LCD Display
   if( ( millis()-refresh ) >= 100 )
     {
-       return rpm;
+       return rpm_value;
        //Serial.println(rpm);  
     }
 }
@@ -76,13 +81,19 @@ void loop()
   {
     digitalWrite(ln1,HIGH);
     digitalWrite(ln2,LOW);
+    
     analogWrite(enA,i);
 
     double prevtime = micros();
-    while(micros() - prevtime <= 2000000)
+    while(micros() - prevtime <= 1000000)
     {
+      // Serial.println(i);
       // Serial.println(micros() - prevtime);
       float rpm  = measure_rpm(dataIN);
+      if (rpm <= -200 || rpm >= 200)
+      {
+        break;
+      }
       
       float in_voltage = measure_voltage(voltage);
       float out_voltage = measure_voltage(back_emf);
@@ -91,14 +102,14 @@ void loop()
       Serial.println(rpm);
       Serial.print("Voltage_IN ");
       Serial.println(in_voltage);
-      Serial.print(" Voltage_OUT ");
+      Serial.print("Voltage_OUT ");
       Serial.println(out_voltage);
          
     } 
   }
   else
   {
-    i = 45;
+    i = min_val - diff;
   }
-  i = i + 5;
+  i = i + diff;
 }
